@@ -1,0 +1,181 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <h2 class="text-center mb-4">Quiz</h2>
+
+    <div id="quiz-container">
+        {% for question in questions %}
+        <div class="question-box mb-4" data-question-id="{{ question.id }}" style="display: {% if forloop.counter == 1 %}block{% else %}none{% endif %};">
+            <div class="question-header mb-3">
+                <p><strong>Question {{ question.question_number }}:</strong></p>
+
+                {% if question.diagram %}
+                <div class="text-center mb-4">
+                    <img src="{{ question.diagram.url }}" alt="Diagram" class="img-fluid rounded shadow-sm" style="max-width: 100%; height: auto;">
+                </div>
+                {% endif %}
+                <!-- 🔧 Always show the question text and text1 -->
+                <p class="question-text">{{ question.text }}</p>
+                <div class="question-text1">
+                    {{ question.text1|safe }}
+                </div>
+            </div>
+
+            <form class="quiz-form">
+                <div class="form-check mb-3">
+                    <input type="radio" class="form-check-input" name="answer_{{ question.id }}" value="A" id="answerA_{{ question.id }}">
+                    <label class="form-check-label" for="answerA_{{ question.id }}">{{ question.option_a }}</label>
+                </div>
+                <div class="form-check mb-3">
+                    <input type="radio" class="form-check-input" name="answer_{{ question.id }}" value="B" id="answerB_{{ question.id }}">
+                    <label class="form-check-label" for="answerB_{{ question.id }}">{{ question.option_b }}</label>
+                </div>
+                <div class="form-check mb-3">
+                    <input type="radio" class="form-check-input" name="answer_{{ question.id }}" value="C" id="answerC_{{ question.id }}">
+                    <label class="form-check-label" for="answerC_{{ question.id }}">{{ question.option_c }}</label>
+                </div>
+                <div class="form-check mb-4">
+                    <input type="radio" class="form-check-input" name="answer_{{ question.id }}" value="D" id="answerD_{{ question.id }}">
+                    <label class="form-check-label" for="answerD_{{ question.id }}">{{ question.option_d }}</label>
+                </div>
+
+                <button type="button" class="btn btn-primary submit-answer">Submit</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="text-center">
+        <button id="finish-quiz" class="btn btn-success mt-4" style="display: none;">Finish Quiz</button>
+    </div>
+
+    <div id="result-container" class="text-center mt-5" style="display: none;">
+        <h3 class="mb-3">Quiz Results</h3>
+        <p>Your Score: <span id="score" class="font-weight-bold"></span> / 150</p>
+        <div id="answers-review"></div>
+    </div>
+</div>
+
+<script>
+    let totalQuestions = document.querySelectorAll('.question-box').length;
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let correctAnswers = 0;
+    let answersData = [];
+
+    document.querySelectorAll('.submit-answer').forEach(button => {
+        button.addEventListener('click', function () {
+            let questionBox = this.closest('.question-box');
+            let questionId = questionBox.getAttribute('data-question-id');
+            let selectedAnswer = questionBox.querySelector('input[name="answer_' + questionId + '"]:checked');
+
+            if (!selectedAnswer) {
+                alert("Please select an answer!");
+                return;
+            }
+
+            let answerValue = selectedAnswer.value;
+
+            fetch("{% url 'check_answer' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ question_id: questionId, answer_value: answerValue })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.correct) {
+                        score += 10;
+                        correctAnswers++;
+                    }
+
+                    answersData.push({
+                        question_id: questionId,
+                        selected_answer: answerValue,
+                        correct: data.correct
+                    });
+
+                    questionBox.style.display = 'none';
+                    currentQuestionIndex++;
+
+                    if (currentQuestionIndex < totalQuestions) {
+                        document.querySelectorAll('.question-box')[currentQuestionIndex].style.display = 'block';
+                    } else {
+                        document.getElementById('finish-quiz').style.display = 'block';
+                    }
+                });
+        });
+    });
+
+    document.getElementById('finish-quiz').addEventListener('click', function () {
+        document.getElementById('quiz-container').style.display = 'none';
+        document.getElementById('result-container').style.display = 'block';
+
+        let percentage = (correctAnswers / totalQuestions) * 150;
+        document.getElementById('score').innerText = `${correctAnswers} / ${totalQuestions} (${percentage.toFixed(2)}%)`;
+
+        let reviewContainer = document.getElementById('answers-review');
+        reviewContainer.innerHTML = '';
+
+        answersData.forEach(answer => {
+            let questionBox = document.querySelector(`.question-box[data-question-id="${answer.question_id}"]`);
+            
+            // 🔧 Get all relevant content
+            let questionText = questionBox.querySelector('.question-text')?.innerText || '';
+            let text1Html = questionBox.querySelector('.question-text1')?.innerHTML || '';
+            let questionImage = questionBox.querySelector('.text-center img');
+
+            let displayQuestion = `
+                ${questionImage ? `<img src="${questionImage.src}" alt="Diagram" class="img-fluid mb-3" style="max-width: 100%; height: auto;">` : ''}
+                <p>${questionText}</p>
+                ${text1Html}
+            `;
+
+            let optionsHtml = "";
+            questionBox.querySelectorAll('.form-check-input').forEach(option => {
+                let optionLabel = option.nextElementSibling.innerText;
+                let optionValue = option.value;
+                let isSelected = (optionValue === answer.selected_answer);
+                let isCorrect = answer.correct;
+
+                let color = isSelected ? (isCorrect ? 'green' : 'red') : 'black';
+                optionsHtml += `<p style="color: ${color};"><strong>${optionValue}.</strong> ${optionLabel}</p>`;
+            });
+
+            let explanationButton = `<button class="btn btn-info explanation-btn" data-question-id="${answer.question_id}">Show Explanation</button>`;
+            let explanationDiv = `<div id="explanation-${answer.question_id}" class="explanation mt-2" style="display: none;"></div>`;
+
+            reviewContainer.innerHTML += `
+                <div class="review-question mb-4">
+                    <strong>Question:</strong><br>${displayQuestion}
+                    ${optionsHtml}
+                    ${explanationButton}
+                    ${explanationDiv}
+                    <hr>
+                </div>
+            `;
+        });
+
+        document.querySelectorAll('.explanation-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const questionId = this.getAttribute('data-question-id');
+                const explanationDiv = document.getElementById(`explanation-${questionId}`);
+
+                if (explanationDiv.style.display === 'none') {
+                    fetch(`/get_explanation/${questionId}/`)
+                        .then(response => response.json())
+                        .then(data => {
+                            explanationDiv.innerHTML = `<strong>Explanation:</strong> ${data.explanation}`;
+                            explanationDiv.style.display = 'block';
+                        });
+                } else {
+                    explanationDiv.style.display = 'none';
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

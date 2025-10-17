@@ -1,0 +1,257 @@
+{% extends "layout.html" %}
+
+{% block title %}Tournament - {{ tournament.name }}{% endblock %}
+
+{% block content %}
+<div class="tournament-hero text-center text-white py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4 fw-bold animate-title">{{ tournament.name }}</h1>
+        <p class="lead">
+            Active from <strong>{{ tournament.start_date|date:"M d, Y" }}</strong> 
+            to <strong>{{ tournament.end_date|date:"M d, Y" }}</strong>
+        </p>
+
+        <!-- Countdown Timer -->
+        <div id="countdown-timer"
+             data-start-date="{{ tournament.start_date|date:'Y-m-d H:i:s' }}"
+             data-end-date="{{ tournament.end_date|date:'Y-m-d H:i:s' }}"
+             class="fw-bold fs-4 text-danger mt-3">
+            Loading timer...
+        </div>
+
+        <div class="prize-box mt-4">
+            🏆 <strong>Prize to Win:</strong> 
+            <span class="text-warning">ZMW {{ tournament.prize_to_win }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="container mt-5">
+
+    <!-- Enrollment Section (Always Visible) -->
+    <div class="mb-5 text-center">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show rounded-3 shadow-sm" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% if user.is_authenticated %}
+            <form method="post" class="d-inline">
+                {% csrf_token %}
+                <button type="submit"
+                        class="btn {% if enrollment %}btn-success{% else %}btn-primary{% endif %} rounded-pill px-4 py-2 pulse"
+                        {% if enrollment %}disabled{% endif %}>
+                    {% if enrollment %}
+                        ✅ Enrolled
+                    {% else %}
+                        🎟️ Enroll Now
+                    {% endif %}
+                </button>
+            </form>
+
+            {% if invited_count < 2 %}
+                <a href="{% url 'profile_view' %}" class="btn btn-warning rounded-pill px-4 py-2 ms-2">
+                    🤝 Invite Friends
+                </a>
+            {% endif %}
+        {% else %}
+            <a href="{% url 'login' %}" class="btn btn-warning rounded-pill px-4 py-2 pulse">
+                🔑 Login to Enroll
+            </a>
+        {% endif %}
+    </div>
+
+    {% if active %}
+        <!-- Subjects Section -->
+        <div class="mb-5">
+            <h3 class="fw-bold mb-3">📚 Subjects</h3>
+            <div class="row g-4">
+                {% for subject in subjects %}
+                    <div class="col-12 col-sm-6 col-md-4">
+                        {% if subject.id in played_subject_ids %}
+                            <!-- Already played -->
+                            <div class="card shadow-sm h-100 border-0 rounded-4 bg-light played-card">
+                                <div class="card-body d-flex align-items-center justify-content-center">
+                                    <h5 class="fw-bold mb-0 text-muted">
+                                        ✅ {{ subject.name }} (Played)
+                                    </h5>
+                                </div>
+                            </div>
+                        {% else %}
+                            <!-- Not played -->
+                            <a href="{% url 'subject_questions' subject.id %}" class="subject-card text-decoration-none">
+                                <div class="card shadow-sm h-100 border-0 rounded-4 subject-hover">
+                                    <div class="card-body d-flex align-items-center justify-content-center">
+                                        <h5 class="fw-bold mb-0 text-dark">{{ subject.name }}</h5>
+                                    </div>
+                                </div>
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Leaderboard Section -->
+        <div class="leaderboard-section mt-5">
+            <h3 class="fw-bold mb-3">🏅 Leaderboard (Top 5)</h3>
+
+            {% if user_rank %}
+                <div class="alert alert-info text-center mb-4">
+                    📊 Your Position: <strong>#{{ user_rank }}</strong>  
+                    | Score: <strong>{{ user_score }} pts</strong>
+                </div>
+            {% endif %}
+
+            <ul class="list-group shadow-sm rounded-4 mb-3 animate-list">
+                {% for score in top5 %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center 
+                               {% if score.user == request.user %}bg-warning-subtle fw-bold{% endif %}">
+                        <span>{{ score.user.username }}</span>
+                        <span class="badge bg-primary rounded-pill px-3">{{ score.score }} pts</span>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-muted">No scores yet.</li>
+                {% endfor %}
+            </ul>
+
+            <button class="btn btn-outline-secondary rounded-pill" 
+                    type="button" data-bs-toggle="collapse" data-bs-target="#fullLeaderboard" 
+                    aria-expanded="false" aria-controls="fullLeaderboard">
+                📜 View Full Leaderboard
+            </button>
+
+            <div class="collapse mt-3" id="fullLeaderboard">
+                <div class="card card-body leaderboard-scroll">
+                    <ol class="list-group list-group-numbered">
+                        {% for score in full_leaderboard %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center
+                                       {% if score.user == request.user %}bg-warning-subtle fw-bold{% endif %}">
+                                {{ score.user.username }}
+                                <span class="badge bg-dark rounded-pill">{{ score.score }} pts</span>
+                            </li>
+                        {% endfor %}
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+        <!-- Inactive Tournament -->
+        <div class="text-center py-5">
+            <h2 class="fw-bold text-danger">Tournament not active</h2>
+            <p class="text-muted">This tournament is either upcoming or has ended.</p>
+            <a href="/" class="btn btn-outline-primary mt-3">Go Back Home</a>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+/* Hero Section */
+.tournament-hero {
+    background: linear-gradient(135deg, #4facfe, #00f2fe);
+    border-radius: 0 0 30px 30px;
+    animation: fadeInDown 1s ease-in-out;
+}
+.animate-title {
+    animation: bounceIn 1.5s;
+}
+.prize-box {
+    font-size: 1.2rem;
+    background: rgba(255,255,255,0.1);
+    padding: 10px 20px;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+/* Subjects */
+.subject-card .card {
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+.subject-hover:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+}
+.played-card {
+    opacity: 0.7;
+    text-decoration: line-through;
+}
+
+/* Leaderboard */
+.leaderboard-scroll {
+    max-height: 400px;
+    overflow-y: auto;
+}
+.bg-warning-subtle {
+    background-color: #fff3cd !important;
+}
+.animate-list li {
+    animation: fadeInUp 0.8s ease-in-out;
+}
+
+/* Button Pulse */
+.pulse {
+    animation: pulseAnim 1.5s infinite;
+}
+
+/* Animations */
+@keyframes pulseAnim {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+@keyframes bounceIn {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.05); opacity: 1; }
+    70% { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+@keyframes fadeInDown {
+    0% { opacity: 0; transform: translateY(-20px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInUp {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<script>
+function updateCountdown() {
+    const timer = document.getElementById("countdown-timer");
+    if (!timer) return;
+
+    const startDate = new Date(timer.getAttribute("data-start-date")).getTime();
+    const endDate = new Date(timer.getAttribute("data-end-date")).getTime();
+    const now = new Date().getTime();
+
+    let targetDate, label;
+
+    if (now < startDate) {
+        targetDate = startDate;
+        label = "⏳ Starts in";
+    } else if (now >= startDate && now <= endDate) {
+        targetDate = endDate;
+        label = "⏳ Ends in";
+    } else {
+        timer.textContent = "⏳ Tournament Ended";
+        return;
+    }
+
+    const distance = targetDate - now;
+    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+    timer.textContent = `${label}: ${days}d ${hours}h ${minutes}m ${seconds}s`;
+}
+
+setInterval(updateCountdown, 1000);
+updateCountdown();
+</script>
+{% endblock %}

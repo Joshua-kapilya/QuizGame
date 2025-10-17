@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+
+{% block title %}Select Quiz Mode - {{ subject.name }}{% endblock %}
+
+{% block content %}
+<div class="container text-center mt-5">
+    <h1 class="display-4 fw-bold text-primary">Quiz Mode for {{ subject.name }}</h1>
+    <p class="lead text-muted">Choose how you want to take the quiz</p>
+
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <form action="{% url 'get_questions' subject.id %}" method="get" class="mb-3">
+                <label for="past_paper" class="form-label">📜 Select a Past Paper:</label>
+                <select name="past_paper_id" id="past_paper" class="form-select">
+                    <option value="">Select a Past Paper</option>
+                    {% for past_paper in past_papers %}
+                        <option value="{{ past_paper.id }}">{{ past_paper.year }}</option>
+                    {% endfor %}
+                </select>
+
+                <button type="submit" class="btn btn-success mt-3 w-100">🎯 Start Quiz</button>
+            </form>
+
+            <p class="mt-3">
+                <a href="{% url 'get_questions' subject.id %}" class="btn btn-warning w-100">
+                    🔀 Try Random Questions
+                </a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .container {
+        max-width: 600px;
+    }
+
+    .btn {
+        font-size: 18px
+        font-weight: bold;
+    }
+</style>
+
+{% endblock %}

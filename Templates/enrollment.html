@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg p-4">
+        <h2 class="mb-3 text-center">Invite Your Friends</h2>
+        <p class="text-center text-muted">
+            Learning is better when shared! Invite your friends to join and study with you. 
+            Together, you can prepare and succeed.
+        </p>
+
+        <div class="input-group mb-3">
+            <input type="text" id="referralLink" class="form-control" value="{{ user_referral_link }}" readonly>
+            <button class="btn btn-primary" onclick="copyLink()">Copy Link</button>
+        </div>
+
+        <p class="text-success text-center" id="copyMessage" style="display:none;">
+            ✅ Link copied! Share it with your friends.
+        </p>
+    </div>
+</div>
+
+<script>
+function copyLink() {
+    var copyText = document.getElementById("referralLink");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999); // for mobile devices
+    document.execCommand("copy");
+
+    document.getElementById("copyMessage").style.display = "block";
+}
+</script>
+{% endblock %}

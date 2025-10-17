@@ -1,0 +1,26 @@
+{% extends "layout.html" %}  {# use your main layout template if you have one #}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg p-4 rounded-3">
+        <h2 class="text-center mb-4">{{ subject.name }} - Results</h2>
+
+        <div class="text-center">
+            <h4>Total Questions: <span class="badge bg-secondary">{{ total_questions }}</span></h4>
+            <h4>Correct Answers: <span class="badge bg-success">{{ correct_answers }}</span></h4>
+            <h4>Your Final Score: <span class="badge bg-primary">{{ final_score }}</span></h4>
+        </div>
+
+        <hr>
+
+        <div class="text-center mt-4">
+            <a href="{% url 'subject_questions' subject.id %}" class="btn btn-outline-primary">
+                Try Again
+            </a>
+            <a href="{% url 'tournament_detail' tournament.id %}" class="btn btn-outline-secondary">
+                Back to Tournament
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
