@@ -1,18 +1,29 @@
 {% extends 'layout.html' %}
 
 {% block content %}
-<div class="container py-5">
-    <h2 class="text-center mb-4">Quiz</h2>
+<div class="container py-5 position-relative" style="z-index:10;">
+    <!-- Animated Motivational Bot -->
+    <div class="text-center mb-4 p-3 rounded shadow" style="background: linear-gradient(135deg, #6CC1FF, #3A8DFF); color: white; display:flex; align-items:center; justify-content:center; gap:10px;">
+        <span class="robot" style="font-size:2rem; animation: wave 1s infinite alternate;">🤖</span>
+        <strong>Let's go! You can do it just like in your final exam!</strong>
+    </div>
+
+    <h2 class="text-center mb-4" style="color:#fff; text-shadow: 2px 2px 5px rgba(0,0,0,0.4);">Quiz</h2>
+
+    <!-- Clear Progress Button -->
+    <div class="text-center mb-4">
+        <button id="clear-quiz" class="btn btn-warning shadow-sm glow-on-hover">Clear Progress</button>
+    </div>
 
     <div id="quiz-container">
         {% for question in questions %}
-        <div class="question-box mb-4" data-question-id="{{ question.id }}" style="display: none;">
+        <div class="question-box mb-4 p-4 rounded shadow-sm" data-question-id="{{ question.id }}" style="display: none; background: rgba(255,255,255,0.9); border-left: 5px solid #3A8DFF; transition: transform 0.2s;">
             <div class="question-header mb-3">
                 <p><strong>Question {{ question.question_number }}:</strong></p>
 
                 {% if question.diagram %}
                 <div class="text-center mb-4">
-                    <img src="{{ question.diagram.url }}" alt="Diagram" class="img-fluid rounded shadow-sm" style="max-width: 100%; height: auto;">
+                    <img src="{{ question.diagram.url }}" alt="Diagram" class="img-fluid rounded shadow-sm">
                 </div>
                 {% endif %}
 
@@ -38,62 +49,123 @@
                     <label class="form-check-label" for="answerD_{{ question.id }}">{{ question.option_d }}</label>
                 </div>
 
-                <button type="button" class="btn btn-primary submit-answer">Submit</button>
+                <button type="button" class="btn btn-primary submit-answer shadow-sm glow-on-hover">Next</button>
             </form>
         </div>
         {% endfor %}
     </div>
 
     <div class="text-center">
-        <button id="finish-quiz" class="btn btn-success mt-4" style="display: none;">Finish Quiz</button>
+        <button id="finish-quiz" class="btn btn-success mt-4 shadow-sm glow-on-hover" style="display: none;">Finish Quiz</button>
     </div>
 
+    <div id="answer-boxes" class="d-flex flex-wrap justify-content-center mt-4" style="gap: 5px;"></div>
+
     <div id="result-container" class="text-center mt-5" style="display: none;">
-        <h3 class="mb-3">Quiz Results</h3>
-        <p>Your Score: <span id="score" class="font-weight-bold"></span> / 150</p>
+        <h3 class="mb-3" style="color:#3A8DFF;">Quiz Results</h3>
+        <p>Your Score: <span id="score" class="font-weight-bold"></span></p>
         <div id="answers-review"></div>
     </div>
 </div>
 
+<!-- Floating particles -->
+<div id="particles-js"></div>
+
+<style>
+    /* Animated robot */
+    @keyframes wave { 0%{transform:rotate(0deg);}50%{transform:rotate(20deg);}100%{transform:rotate(-20deg);} }
+    .question-box:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+    .glow-on-hover { box-shadow: 0 0 5px #fff, 0 0 10px #3A8DFF, 0 0 20px #3A8DFF; transition: 0.3s; }
+    .glow-on-hover:hover { box-shadow: 0 0 10px #fff, 0 0 20px #3A8DFF, 0 0 30px #3A8DFF; }
+
+    .explanation { background-color:#eef6ff; padding:10px; border-left: 4px solid #3A8DFF; border-radius:5px; }
+
+    body { 
+        background: linear-gradient(-45deg, #6CC1FF, #3A8DFF, #FFC371, #FF7C7C);
+        background-size: 400% 400%;
+        animation: gradientBG 20s ease infinite;
+    }
+    @keyframes gradientBG {
+        0%{background-position:0% 50%;}
+        50%{background-position:100% 50%;}
+        100%{background-position:0% 50%;}
+    }
+
+    /* Particle container full screen */
+    #particles-js {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%; z-index:0;
+        pointer-events: none;
+    }
+</style>
+
+<!-- Confetti & Particles -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+<script>
+    // Confetti on finish
+    document.getElementById('finish-quiz').addEventListener('click', () => {
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+    });
+
+    // Initialize particles
+    particlesJS('particles-js', {
+        "particles": {
+            "number": { "value": 50 },
+            "size": { "value": 4 },
+            "move": { "speed": 2 },
+            "line_linked": { "enable": false },
+            "shape": { "type": "circle" },
+            "opacity": { "value": 0.6, "anim": { "enable": true, "speed": 0.5, "opacity_min": 0.2 } }
+        },
+        "interactivity": {
+            "events": { "onhover": { "enable": true, "mode": "repulse" } }
+        }
+    });
+</script>
+
+
+
 <script>
 let totalQuestions = document.querySelectorAll('.question-box').length;
+let currentQuestionIndex = parseInt(localStorage.getItem('currentQuestionIndex')) || 0;
+let answersData = JSON.parse(localStorage.getItem('answersData')) || [];
+let quizFinished = localStorage.getItem('quizFinished') === 'true';
 
-// Load saved progress
-let savedIndex = localStorage.getItem('currentQuestionIndex');
-let currentQuestionIndex = savedIndex ? parseInt(savedIndex) : 0;
+// Show question
+function showQuestion(index) {
+    document.querySelectorAll('.question-box').forEach((q, idx) => {
+        q.style.display = (idx === index) ? 'block' : 'none';
+    });
 
-let savedAnswers = localStorage.getItem('answersData');
-let answersData = savedAnswers ? JSON.parse(savedAnswers) : [];
-
-let score = 0;
-let correctAnswers = 0;
-
-// Show only the current question
-document.querySelectorAll('.question-box').forEach((q, idx) => {
-    q.style.display = (idx === currentQuestionIndex) ? 'block' : 'none';
-});
-
-// Preselect saved answers
-answersData.forEach(answer => {
-    let questionBox = document.querySelector(`.question-box[data-question-id="${answer.question_id}"]`);
-    if (questionBox) {
-        let input = questionBox.querySelector(`input[value="${answer.selected_answer}"]`);
+    // Preselect saved answer
+    let questionBox = document.querySelectorAll('.question-box')[index];
+    if (!questionBox) return;
+    let questionId = questionBox.getAttribute('data-question-id');
+    let savedAnswer = answersData.find(a => a.question_id == questionId);
+    if (savedAnswer) {
+        let input = questionBox.querySelector(`input[value="${savedAnswer.selected_answer}"]`);
         if (input) input.checked = true;
     }
-});
+}
+if (!quizFinished) showQuestion(currentQuestionIndex);
 
+// Save progress
+function saveProgress() {
+    localStorage.setItem('currentQuestionIndex', currentQuestionIndex);
+    localStorage.setItem('answersData', JSON.stringify(answersData));
+    localStorage.setItem('quizFinished', quizFinished ? 'true' : 'false');
+}
+
+// Next button
 document.querySelectorAll('.submit-answer').forEach(button => {
     button.addEventListener('click', function () {
         let questionBox = this.closest('.question-box');
         let questionId = questionBox.getAttribute('data-question-id');
-        let selectedAnswer = questionBox.querySelector(`input[name="answer_${questionId}"]:checked`);
+        let selectedInput = questionBox.querySelector(`input[name="answer_${questionId}"]:checked`);
+        if (!selectedInput) { alert("Please select an answer!"); return; }
 
-        if (!selectedAnswer) {
-            alert("Please select an answer!");
-            return;
-        }
-
-        let answerValue = selectedAnswer.value;
+        let answerValue = selectedInput.value;
 
         fetch("{% url 'check_answer' %}", {
             method: "POST",
@@ -105,12 +177,6 @@ document.querySelectorAll('.submit-answer').forEach(button => {
         })
         .then(response => response.json())
         .then(data => {
-            if (data.correct) {
-                score += 10;
-                correctAnswers++;
-            }
-
-            // Update answersData
             let existingIndex = answersData.findIndex(a => a.question_id == questionId);
             if (existingIndex >= 0) {
                 answersData[existingIndex] = { question_id: questionId, selected_answer: answerValue, correct: data.correct };
@@ -118,15 +184,11 @@ document.querySelectorAll('.submit-answer').forEach(button => {
                 answersData.push({ question_id: questionId, selected_answer: answerValue, correct: data.correct });
             }
 
-            // Save progress
-            localStorage.setItem('currentQuestionIndex', currentQuestionIndex + 1);
-            localStorage.setItem('answersData', JSON.stringify(answersData));
+            saveProgress();
 
-            questionBox.style.display = 'none';
-            currentQuestionIndex++;
-
-            if (currentQuestionIndex < totalQuestions) {
-                document.querySelectorAll('.question-box')[currentQuestionIndex].style.display = 'block';
+            if (currentQuestionIndex < totalQuestions - 1) {
+                currentQuestionIndex++;
+                showQuestion(currentQuestionIndex);
             } else {
                 document.getElementById('finish-quiz').style.display = 'block';
             }
@@ -134,64 +196,94 @@ document.querySelectorAll('.submit-answer').forEach(button => {
     });
 });
 
-document.getElementById('finish-quiz').addEventListener('click', function () {
+// Previous button
+document.querySelectorAll('.question-box').forEach(qb => {
+    let prevBtn = document.createElement('button');
+    prevBtn.type = 'button';
+    prevBtn.className = 'btn btn-secondary prev-answer me-2';
+    prevBtn.innerText = 'Previous';
+    qb.querySelector('.quiz-form').insertBefore(prevBtn, qb.querySelector('.submit-answer'));
+
+    prevBtn.addEventListener('click', function () {
+        if (currentQuestionIndex > 0) {
+            currentQuestionIndex--;
+            showQuestion(currentQuestionIndex);
+            saveProgress();
+        }
+    });
+});
+
+// Show results function (used for finish button and on reload if finished)
+function showResults() {
     document.getElementById('quiz-container').style.display = 'none';
     document.getElementById('result-container').style.display = 'block';
+    document.getElementById('finish-quiz').style.display = 'none';
+    quizFinished = true;
+    saveProgress();
 
-    let percentage = (correctAnswers / totalQuestions) * 150;
+    let correctAnswers = answersData.filter(a => a.correct).length;
+    let percentage = (correctAnswers / totalQuestions) * 100;
     document.getElementById('score').innerText = `${correctAnswers} / ${totalQuestions} (${percentage.toFixed(2)}%)`;
 
-    let reviewContainer = document.getElementById('answers-review');
-    reviewContainer.innerHTML = '';
+    // Answer boxes
+    const boxesContainer = document.getElementById('answer-boxes');
+    boxesContainer.innerHTML = '';
+    answersData.forEach((answer, index) => {
+        let box = document.createElement('div');
+        box.className = 'p-2 text-white fw-bold text-center';
+        box.style.width = '30px';
+        box.style.height = '30px';
+        box.style.cursor = 'pointer';
+        box.style.borderRadius = '5px';
+        box.style.display = 'flex';
+        box.style.alignItems = 'center';
+        box.style.justifyContent = 'center';
+        box.style.backgroundColor = answer.correct ? 'green' : 'red';
+        box.innerText = index + 1;
 
+        box.addEventListener('click', () => {
+            currentQuestionIndex = index;
+            showQuestion(currentQuestionIndex);
+            document.getElementById('result-container').style.display = 'none';
+        });
+
+        boxesContainer.appendChild(box);
+    });
+
+    // Answers review with explanation button
+    const reviewContainer = document.getElementById('answers-review');
+    reviewContainer.innerHTML = '';
     answersData.forEach(answer => {
         let questionBox = document.querySelector(`.question-box[data-question-id="${answer.question_id}"]`);
         if (!questionBox) return;
 
         let questionText = questionBox.querySelector('.question-text')?.innerText || '';
-        let text1Html = questionBox.querySelector('.question-text1')?.innerHTML || '';
+        let explanationHtml = questionBox.querySelector('.question-text1')?.innerHTML || '';
         let questionImage = questionBox.querySelector('.text-center img');
 
         let displayQuestion = `
-            ${questionImage ? `<img src="${questionImage.src}" alt="Diagram" class="img-fluid mb-3" style="max-width: 100%; height: auto;">` : ''}
+            ${questionImage ? `<img src="${questionImage.src}" class="img-fluid mb-3" style="max-width:100%;height:auto;">` : ''}
             <p>${questionText}</p>
-            ${text1Html}
         `;
 
         let optionsHtml = '';
         questionBox.querySelectorAll('.form-check-input').forEach(option => {
-            let optionLabel = option.nextElementSibling.innerText;
-            let optionValue = option.value;
-            let isSelected = (optionValue === answer.selected_answer);
-            let isCorrect = answer.correct;
-
-            let color = isSelected ? (isCorrect ? 'green' : 'red') : 'black';
-            optionsHtml += `<p style="color: ${color};"><strong>${optionValue}.</strong> ${optionLabel}</p>`;
+            let label = option.nextElementSibling.innerText;
+            let color = option.value === answer.selected_answer ? (answer.correct ? 'green' : 'red') : 'black';
+            optionsHtml += `<p style="color:${color};"><strong>${option.value}.</strong> ${label}</p>`;
         });
 
-        let explanationButton = `<button class="btn btn-info explanation-btn" data-question-id="${answer.question_id}">Show Explanation</button>`;
-        let explanationDiv = `<div id="explanation-${answer.question_id}" class="explanation mt-2" style="display: none;"></div>`;
+        let explanationButton = `<button class="btn btn-info explanation-btn mt-2" data-question-id="${answer.question_id}">Show Explanation</button>`;
+        let explanationDiv = `<div id="explanation-${answer.question_id}" class="explanation mt-2" style="display:none;">${explanationHtml}</div>`;
 
-        reviewContainer.innerHTML += `
-            <div class="review-question mb-4">
-                <strong>Question:</strong><br>${displayQuestion}
-                ${optionsHtml}
-                ${explanationButton}
-                ${explanationDiv}
-                <hr>
-            </div>
-        `;
+        reviewContainer.innerHTML += `<div class="review-question mb-4" id="review-question-${answer.question_id}">${displayQuestion}${optionsHtml}${explanationButton}${explanationDiv}<hr></div>`;
     });
 
-    // Clear progress on finish
-    localStorage.removeItem('currentQuestionIndex');
-    localStorage.removeItem('answersData');
-
+    // Explanation toggle
     document.querySelectorAll('.explanation-btn').forEach(button => {
         button.addEventListener('click', function () {
             const questionId = this.getAttribute('data-question-id');
             const explanationDiv = document.getElementById(`explanation-${questionId}`);
-
             if (explanationDiv.style.display === 'none') {
                 fetch(`/get_explanation/${questionId}/`)
                     .then(response => response.json())
@@ -204,6 +296,30 @@ document.getElementById('finish-quiz').addEventListener('click', function () {
             }
         });
     });
+}
+
+// Finish quiz
+document.getElementById('finish-quiz').addEventListener('click', showResults);
+
+// Restore results on page reload if finished
+if (quizFinished) {
+    showResults();
+}
+
+// Clear Progress button
+document.getElementById('clear-quiz').addEventListener('click', function () {
+    if (confirm("Are you sure you want to reset the quiz? All progress will be lost.")) {
+        localStorage.removeItem('currentQuestionIndex');
+        localStorage.removeItem('answersData');
+        localStorage.removeItem('quizFinished');
+        currentQuestionIndex = 0;
+        answersData = [];
+        document.querySelectorAll('.form-check-input').forEach(input => input.checked = false);
+        document.getElementById('finish-quiz').style.display = 'none';
+        showQuestion(currentQuestionIndex);
+        document.getElementById('answer-boxes').innerHTML = '';
+        document.getElementById('result-container').style.display = 'none';
+    }
 });
 </script>
 {% endblock %}
