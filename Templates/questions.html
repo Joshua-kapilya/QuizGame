@@ -271,6 +271,9 @@ function showResults() {
             let label = option.nextElementSibling.innerText;
             let color = option.value === answer.selected_answer ? (answer.correct ? 'green' : 'red') : 'black';
             optionsHtml += `<p style="color:${color};"><strong>${option.value}.</strong> ${label}</p>`;
+            if (!answer.correct && option.value === "{{ question.correct_option|default:'' }}") {
+            optionsHtml += `<p style="color:blue;"><strong>${option.value}.</strong> ${label} ✅ (Correct Answer)</p>`;
+        }
         });
 
         let explanationButton = `<button class="btn btn-info explanation-btn mt-2" data-question-id="${answer.question_id}">Show Explanation</button>`;
